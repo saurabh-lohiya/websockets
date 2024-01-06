@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Log Viewer</title>
+		<script type="module">
+			import { io } from "https://cdn.socket.io/4.5.4/socket.io.esm.min.js"
+
+			const socket = io()
+			const logContainer = document.getElementById("logs")
+			socket.on("logUpdate", (data) => {
+				const newElement = document.createElement("div")
+				newElement.innerHTML = data.map((log) => `<p>${log}</p>`).join("")
+				logContainer.appendChild(newElement)
+				logContainer.scrollTop = logContainer.scrollHeight
+			})
+		</script>
+	</head>
+	<body>
+		<div id="logs"></div>
+	</body>
+</html>

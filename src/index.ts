@@ -11,6 +11,7 @@ const server = http.createServer(app)
 const io = new Server(server)
 
 const logFile = "updates.log"
+let lastFileSize = 0
 
 app.use("/", express.static(path.join(__dirname, "public")))
 
@@ -21,25 +22,33 @@ io.on("connection", (socket) => {
 		.catch((err) => console.error("Error reading log file:", err))
 })
 
-let lastLineRead = 0
+async function readNewLines(): Promise<string[]> {
+	const stream = fs.createReadStream(logFile, { start: lastFileSize })
+	let newLines: string[] = []
 
-// Watch for file changes and emit updates
-fs.watch(logFile, (event) => {
-	console.log(event)
-	if (event === "change") {
-		const rl = readline.createInterface({
-			input: fs.createReadStream(logFile, { start: lastLineRead }),
-			crlfDelay: Infinity,
+	return new Promise((resolve, reject) => {
+		stream.on("data", (chunk) => {
+			const lines = chunk.toString().split("\n")
+			// @ts-ignore
+			newLines.push(...lines.slice(0, -1)) // Skip the last incomplete line
 		})
-		let lastLines: string[] = []
-		console.log(lastLineRead)
-		rl.on("line", (line) => {
-			console.log(line)
-			lastLineRead += Buffer.byteLength(line, "utf8") + 1 // +1 for the newline character
-			lastLines.push(line)
+		stream.on("end", () => {
+			resolve(newLines)
 		})
-		console.log(lastLines)
-		io.emit("logUpdate", lastLines)
+		stream.on("error", (err) => {
+			reject(err)
+		})
+	})
+}
+
+fs.watchFile(logFile, (curr, prev) => {
+	if (curr.size !== prev.size) {
+		readNewLines()
+			.then((lines) => {
+				io.emit("logUpdate", lines)
+				lastFileSize = curr.size // Update lastFileSize
+			})
+			.catch((err) => console.error("Error reading file:", err))
 	}
 })
 

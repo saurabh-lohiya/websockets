@@ -8,15 +8,16 @@ export function truncateLine(line: string) {
 		: line
 }
 
-export async function readLastNLines(n: number) {
+export async function readLastNLines(n: number): Promise<string[]> {
 	let i = 1
+    let lastLines: string[] = [] // Specify the type of the 'lastLines' array
 	while (i < 20) {
 		const stats = await fs.promises.stat(logFile)
 		const fileSize = stats.size
 		const stream = fs.createReadStream(logFile, {
 			start: Math.max(0, fileSize - 100 * n * i),
+			end: Math.max(0, fileSize - 100 * n * (i - 1)),
 		}) // Start reading from the last 1000 bytes
-		let lastLines: string[] = [] // Specify the type of the 'lastLines' array
 
 		for await (const chunk of stream) {
 			const lines: string[] = chunk.toString().split("\n") // Specify the type of the 'lines' array
@@ -32,4 +33,5 @@ export async function readLastNLines(n: number) {
 			i++
 		}
 	}
+	return []
 }
